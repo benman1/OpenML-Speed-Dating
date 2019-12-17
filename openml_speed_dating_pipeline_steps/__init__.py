@@ -5,5 +5,6 @@ __email__ = 'auffarth@gmail.com'
 __version__ = '0.1.1'
 
 from .openml_speed_dating_pipeline_steps import (
-    RangeTransformer, FloatTransformer, PandasPicker
+    RangeTransformer, FloatTransformer,
+    PandasPicker, PandasPicker2
 )

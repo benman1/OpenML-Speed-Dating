@@ -122,3 +122,12 @@ class PandasPicker(BaseEstimator, TransformerMixin):
         for col in self.features:
             new_data[str(col) + self.suffix] = X[col]
         return new_data
+
+
+class PandasPicker2(PandasPicker):
+    '''
+    working around this issue: 
+    https://github.com/openml/OpenML/issues/340
+
+    Found a second occurence of component...
+    '''
