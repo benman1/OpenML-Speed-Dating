@@ -38,7 +38,7 @@ class RangeTransformer(BaseEstimator, TransformerMixin):
         for col in self.range_features:
             range_data[str(col) + self.suffix] = X[col].apply(
                 lambda x: self._encode_ranges(x)
-            )
+            ).astype(float)
         return range_data
 
     @staticmethod
@@ -126,7 +126,7 @@ class PandasPicker(BaseEstimator, TransformerMixin):
 
 class PandasPicker2(PandasPicker):
     '''
-    working around this issue: 
+    working around this issue:
     https://github.com/openml/OpenML/issues/340
 
     Found a second occurence of component...
