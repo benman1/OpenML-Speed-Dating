@@ -2,8 +2,10 @@
 in the OpenML Speed Dating challenge."""
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_numeric_dtype
 from sklearn.base import BaseEstimator, TransformerMixin
 import category_encoders.utils as util
+import operator
 
 
 class RangeTransformer(BaseEstimator, TransformerMixin):
@@ -12,16 +14,16 @@ class RangeTransformer(BaseEstimator, TransformerMixin):
 
     Parameters
     ----------
-    range_features : list[str]
-        This specifies the column names with the ranges.
+    range_features : list[str] or None
+        This specifies the column names with the ranges. If None,
+        all features will be encoded. This is important so this
+        transformer will work with sklearn's ColumnTransformer.
+    suffix : this determines how we will rename the transformed features.
 
     Attributes
     ----------
     range_features : list[str]
-        Here we store the columns with range features. If None, all features
-        will be encoded. This is important so this transformer will work
-        with sklearn's ColumnTransformer.
-    suffix : this determines how we will rename the transformed features.
+        Here we store the columns with range features.
     '''
     def __init__(self, range_features=None, suffix='_range/mean'):
         assert isinstance(range_features, list) or range_features is None
@@ -41,14 +43,99 @@ class RangeTransformer(BaseEstimator, TransformerMixin):
         X : array-like; either numpy array or pandas dataframe.
         '''
         X = util.convert_input(X)
-        range_data = pd.DataFrame(index=X.index)
         if self.range_features is None:
             self.range_features = list(X.columns)
+
+        range_data = pd.DataFrame(index=X.index)
         for col in self.range_features:
             range_data[str(col) + self.suffix] = X[col].apply(
                 lambda x: self._encode_ranges(x)
             ).astype(float)
         return range_data
+
+    @staticmethod
+    def _encode_ranges(range_str):
+        splits = range_str[1:-1].split('-')
+        range_max = float(splits[-1])
+        range_min = float('-'.join(splits[:-1]))
+        return sum([range_min, range_max]) / 2.0
+
+
+class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
+    '''
+    A custom transformer for numeric features that calculates differences
+    between them.
+
+    Parameters
+    ----------
+    features : list[str] or None
+        This specifies the column names with the numerical features. If None,
+        all features will be encoded. This is important so this
+        transformer will work with sklearn's ColumnTransformer.
+    suffix : this determines how we will rename the transformed features.
+    op : this is the operation to calculate between the two columns.
+        This is minus (operator.sub) by default.
+
+    Attributes
+    ----------
+    features : list[str]
+        Here we store the columns with numerical features.
+
+
+    Example
+    -------
+    >>> from sklearn import datasets
+    >>> import pandas as pd
+    >>> iris = datasets.load_iris()
+    >>> data = pd.DataFrame(data=iris.data, columns=iris.feature_names)
+    >> numeric_difference = pipeline_steps.NumericDifferenceTransformer()
+    >>> numeric_difference.transform(data).columns
+    Index(['sepal length (cm)_sepal width (cm)_numdist',
+           'sepal length (cm)_petal length (cm)_numdist',
+           'sepal length (cm)_petal width (cm)_numdist',
+           'sepal width (cm)_petal length (cm)_numdist',
+           'sepal width (cm)_petal width (cm)_numdist',
+           'petal length (cm)_petal width (cm)_numdist'],
+          dtype='object')
+    '''
+    def __init__(self, features=None, suffix='_numdist', op=operator.sub):
+        assert isinstance(features, list) or features is None
+        self.features = features
+        self.suffix = suffix
+        self.op = op
+
+    def fit(self, X, y=None):
+        '''Nothing to do here
+        '''
+        return self
+
+    def _col_name(self, col1, col2):
+        return str(col1) + '_' + str(col2) + self.suffix
+
+    def transform(self, X, y=None):
+        '''apply the transformation
+
+        Parameters:
+        -----------
+        X : array-like; either numpy array or pandas dataframe.
+        '''
+        X = util.convert_input(X)
+        if self.features is None:
+            self.features = list(X.columns)
+
+        data = pd.DataFrame(index=X.index)
+        for i, col1 in enumerate(self.features[:-1]):
+            if not is_numeric_dtype(X[col1]):
+                continue
+            for col2 in self.features[i+1:]:
+                if not is_numeric_dtype(X[col2]):
+                    continue
+                data[self._col_name(col1, col2)] = X.apply(
+                    lambda x:
+                    self.op(x[col1], x[col2]),
+                    axis=1
+                )
+        return data
 
     @staticmethod
     def _encode_ranges(range_str):
@@ -64,15 +151,15 @@ class FloatTransformer(BaseEstimator, TransformerMixin):
 
     Parameters
     ----------
-    float_features : list[str]
+    float_features : list[str] or None
         This specifies the column names with the floats that are encoded as
         strings.
+    suffix : this determines how we will rename the transformed features.
 
     Attributes
     ----------
-    float_features : list[str]
+    float_features : list[str] or None
         Here we store the columns with float features.
-    suffix : this determines how we will rename the transformed features.
     '''
 
     def __init__(self, float_features=[], suffix='_asfloat'):
@@ -87,7 +174,15 @@ class FloatTransformer(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None):
         '''apply the transformation
+
+        Parameters:
+        -----------
+        X : array-like; either numpy array or pandas dataframe.
         '''
+        X = util.convert_input(X)
+        if self.float_features is None:
+            self.float_features = list(X.columns)
+
         float_data = pd.DataFrame()
         for col in self.float_features:
             float_data[str(col) + self.suffix] = X[col].apply(
@@ -105,13 +200,13 @@ class PandasPicker(BaseEstimator, TransformerMixin):
     ----------
     features : list[str]
         This specifies the column names that we want to use.
+    suffix : this determines how we will rename the features.
+        Empty string by default.
 
     Attributes
     ----------
     features : list[str]
         Here we store the column names that we use.
-    suffix : this determines how we will rename the features.
-        Empty string by default.
     '''
 
     def __init__(self, features=[], suffix=''):
@@ -126,7 +221,15 @@ class PandasPicker(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None):
         '''apply the transformation
+
+        Parameters:
+        -----------
+        X : array-like; either numpy array or pandas dataframe.
         '''
+        X = util.convert_input(X)
+        if self.features is None:
+            self.features = list(X.columns)
+
         new_data = pd.DataFrame()
         for col in self.features:
             new_data[str(col) + self.suffix] = X[col]

@@ -6,5 +6,6 @@ __version__ = '0.3.1'
 
 from .openml_speed_dating_pipeline_steps import (
     RangeTransformer, FloatTransformer,
+    NumericDifferenceTransformer,
     PandasPicker, PandasPicker2
 )
