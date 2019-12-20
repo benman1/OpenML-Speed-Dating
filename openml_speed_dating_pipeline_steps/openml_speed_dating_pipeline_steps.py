@@ -23,9 +23,8 @@ class RangeTransformer(BaseEstimator, TransformerMixin):
         with sklearn's ColumnTransformer.
     suffix : this determines how we will rename the transformed features.
     '''
-
     def __init__(self, range_features=None, suffix='_range/mean'):
-        assert isinstance(range_features, list)
+        assert isinstance(range_features, list) or range_features is None
         self.range_features = range_features
         self.suffix = suffix
 
