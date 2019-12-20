@@ -3,6 +3,7 @@ in the OpenML Speed Dating challenge."""
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
+import category_encoders.utils as util
 
 
 class RangeTransformer(BaseEstimator, TransformerMixin):
@@ -17,11 +18,13 @@ class RangeTransformer(BaseEstimator, TransformerMixin):
     Attributes
     ----------
     range_features : list[str]
-        Here we store the columns with range features.
+        Here we store the columns with range features. If None, all features
+        will be encoded. This is important so this transformer will work
+        with sklearn's ColumnTransformer.
     suffix : this determines how we will rename the transformed features.
     '''
 
-    def __init__(self, range_features=[], suffix='_range/mean'):
+    def __init__(self, range_features=None, suffix='_range/mean'):
         assert isinstance(range_features, list)
         self.range_features = range_features
         self.suffix = suffix
@@ -33,8 +36,15 @@ class RangeTransformer(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None):
         '''apply the transformation
+
+        Parameters:
+        -----------
+        X : array-like; either numpy array or pandas dataframe.
         '''
-        range_data = pd.DataFrame()
+        X = util.convert_input(X)
+        range_data = pd.DataFrame(index=X.index)
+        if self.range_features is None:
+            self.range_features = list(X.columns)
         for col in self.range_features:
             range_data[str(col) + self.suffix] = X[col].apply(
                 lambda x: self._encode_ranges(x)
