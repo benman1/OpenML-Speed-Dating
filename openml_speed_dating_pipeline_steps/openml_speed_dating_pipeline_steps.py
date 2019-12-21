@@ -51,6 +51,7 @@ class RangeTransformer(BaseEstimator, TransformerMixin):
             range_data[str(col) + self.suffix] = X[col].apply(
                 lambda x: self._encode_ranges(x)
             ).astype(float)
+        self.feature_names = list(range_data.columns)
         return range_data
 
     @staticmethod
@@ -59,6 +60,11 @@ class RangeTransformer(BaseEstimator, TransformerMixin):
         range_max = float(splits[-1])
         range_min = float('-'.join(splits[:-1]))
         return sum([range_min, range_max]) / 2.0
+
+    def get_feature_names(self):
+        '''Array mapping from feature integer indices to feature name
+        '''
+        return self.feature_names
 
 
 class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
@@ -135,6 +141,7 @@ class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
                     self.op(x[col1], x[col2]),
                     axis=1
                 )
+        self.feature_names = list(data.columns)
         return data
 
     @staticmethod
@@ -143,6 +150,11 @@ class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
         range_max = float(splits[-1])
         range_min = float('-'.join(splits[:-1]))
         return sum([range_min, range_max]) / 2.0
+
+    def get_feature_names(self):
+        '''Array mapping from feature integer indices to feature name
+        '''
+        return self.feature_names
 
 
 class FloatTransformer(BaseEstimator, TransformerMixin):
@@ -189,7 +201,13 @@ class FloatTransformer(BaseEstimator, TransformerMixin):
                 lambda x: float(x)
                 if x != '?' else np.NaN
             ).astype(float)
+        self.feature_names = list(float_data.columns)
         return float_data
+
+    def get_feature_names(self):
+        '''Array mapping from feature integer indices to feature name
+        '''
+        return self.feature_names
 
 
 class PandasPicker(BaseEstimator, TransformerMixin):
@@ -234,6 +252,11 @@ class PandasPicker(BaseEstimator, TransformerMixin):
         for col in self.features:
             new_data[str(col) + self.suffix] = X[col]
         return new_data
+
+    def get_feature_names(self):
+        '''Array mapping from feature integer indices to feature name
+        '''
+        return self.features
 
 
 class PandasPicker2(PandasPicker):
