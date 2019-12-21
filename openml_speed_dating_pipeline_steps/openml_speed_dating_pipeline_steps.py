@@ -69,8 +69,8 @@ class RangeTransformer(BaseEstimator, TransformerMixin):
 
 class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
     '''
-    A custom transformer for numeric features that calculates differences
-    between them.
+    A custom transformer that calculates differences between
+    numeric features.
 
     Parameters
     ----------
@@ -143,13 +143,6 @@ class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
                 )
         self.feature_names = list(data.columns)
         return data
-
-    @staticmethod
-    def _encode_ranges(range_str):
-        splits = range_str[1:-1].split('-')
-        range_max = float(splits[-1])
-        range_min = float('-'.join(splits[:-1]))
-        return sum([range_min, range_max]) / 2.0
 
     def get_feature_names(self):
         '''Array mapping from feature integer indices to feature name
