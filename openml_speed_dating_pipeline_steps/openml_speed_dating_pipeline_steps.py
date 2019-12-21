@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.impute import SimpleImputer
 import category_encoders.utils as util
 import operator
 
@@ -259,3 +260,24 @@ class PandasPicker2(PandasPicker):
 
     Found a second occurence of component...
     '''
+
+
+class SimpleImputerWithFeatureNames(SimpleImputer):
+    '''Thin wrapper around the SimpleImputer that provides get_feature_names()
+    '''
+    def __init__(self, missing_values=np.nan, strategy="mean",
+                 fill_value=None, verbose=0, copy=True):
+        super(SimpleImputerWithFeatureNames, self).__init__(
+            missing_values, strategy, fill_value, verbose,
+            copy, add_indicator=True
+        )
+
+    def fit(self, X, y=None):
+        if isinstance(X, (pd.DataFrame, pd.Series)):
+            self.features = list(X.columns)
+        else:
+            self.features = list(range(X.shape[1]))
+        return super().fit(X, y)
+
+    def get_feature_names(self):
+        return [self.features[f] for f in self.indicator_.features_]
