@@ -2,7 +2,7 @@
 
 __author__ = """Ben Auffarth"""
 __email__ = 'auffarth@gmail.com'
-__version__ = '0.5.3'
+__version__ = '0.5.4'
 
 from .openml_speed_dating_pipeline_steps import (
     RangeTransformer, FloatTransformer,
