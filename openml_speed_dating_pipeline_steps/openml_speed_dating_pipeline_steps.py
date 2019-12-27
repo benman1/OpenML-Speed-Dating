@@ -5,7 +5,6 @@ import operator
 from joblib import Parallel, delayed
 import numpy as np
 import pandas as pd
-from pandas.api.types import is_numeric_dtype
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.impute import SimpleImputer
 import category_encoders.utils as util
@@ -28,10 +27,11 @@ class RangeTransformer(BaseEstimator, TransformerMixin):
     range_features : list[str]
         Here we store the columns with range features.
     '''
-    def __init__(self, range_features=None, suffix='_range/mean'):
+    def __init__(self, range_features=None, suffix='_range/mean', n_jobs=-1):
         assert isinstance(range_features, list) or range_features is None
         self.range_features = range_features
         self.suffix = suffix
+        self.n_jobs = n_jobs
 
     def fit(self, X, y=None):
         '''Nothing to do here
@@ -58,7 +58,9 @@ class RangeTransformer(BaseEstimator, TransformerMixin):
         return range_data
 
     def _vectorize(self, s):
-        return Parallel(n_jobs=-1)(delayed(self._encode_range)(x) for x in s)
+        return Parallel(n_jobs=self.n_jobs)(
+            delayed(self._encode_range)(x) for x in s
+        )
 
     @staticmethod
     @lru_cache(maxsize=32)
@@ -111,19 +113,34 @@ class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
            'petal length (cm)_petal width (cm)_numdist'],
           dtype='object')
     '''
-    def __init__(self, features=None, suffix='_numdist', op=operator.sub):
+    def __init__(self, features=None,
+                 suffix='_numdist', op=operator.sub, n_jobs=-1
+                 ):
         assert isinstance(features, list) or features is None
         self.features = features
         self.suffix = suffix
         self.op = op
+        self.n_jobs = n_jobs
 
     def fit(self, X, y=None):
         '''Nothing to do here
         '''
+        X = util.convert_input(X)
+        if self.features is None:
+            self.features = list(
+                X.select_dtypes(include='number').columns
+            )
         return self
 
     def _col_name(self, col1, col2):
         return str(col1) + '_' + str(col2) + self.suffix
+
+    def _feature_pairs(self):
+        feature_pairs = []
+        for i, col1 in enumerate(self.features[:-1]):
+            for col2 in self.features[i+1:]:
+                feature_pairs.append((col1, col2))
+        return feature_pairs
 
     def transform(self, X, y=None):
         '''apply the transformation
@@ -133,18 +150,22 @@ class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
         X : array-like; either numpy array or pandas dataframe.
         '''
         X = util.convert_input(X)
-        if self.features is None:
-            self.features = list(X.columns)
 
-        data = pd.DataFrame(index=X.index)
-        for i, col1 in enumerate(self.features[:-1]):
-            if not is_numeric_dtype(X[col1]):
-                continue
-            for col2 in self.features[i+1:]:
-                if not is_numeric_dtype(X[col2]):
-                    continue
-                data[self._col_name(col1, col2)] = self.op(X[col1], X[col2])
-        self.feature_names = list(data.columns)
+        feature_pairs = self._feature_pairs()
+        columns = Parallel(n_jobs=self.n_jobs)(
+            delayed(self._col_name)(col1, col2)
+            for col1, col2 in feature_pairs
+        )
+        data_cols = Parallel(n_jobs=self.n_jobs)(
+            delayed(self.op)(X[col1], X[col2])
+            for col1, col2 in feature_pairs
+        )
+        data = pd.concat(data_cols, axis=1)
+        data.rename(
+            columns={i: col for i, col in enumerate(columns)},
+            inplace=True, copy=False
+        )
+        data.index = X.index
         return data
 
     def get_feature_names(self):
