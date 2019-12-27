@@ -1,13 +1,14 @@
 """This module implements the pipeline steps needed to classify partner choices
 in the OpenML Speed Dating challenge."""
+from functools import lru_cache
+import operator
+from joblib import Parallel, delayed
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
-import numba
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.impute import SimpleImputer
 import category_encoders.utils as util
-import operator
 
 
 class RangeTransformer(BaseEstimator, TransformerMixin):
@@ -50,15 +51,18 @@ class RangeTransformer(BaseEstimator, TransformerMixin):
 
         range_data = pd.DataFrame(index=X.index)
         for col in self.range_features:
-            range_data[str(col) + self.suffix] = self._encode_ranges(
-                X[col].to_numpy()
-            ).astype(float)
+            range_data[str(col) + self.suffix] = pd.to_numeric(
+                self._vectorize(X[col])
+            )
         self.feature_names = list(range_data.columns)
         return range_data
 
+    def _vectorize(self, s):
+        return Parallel(n_jobs=-1)(delayed(self._encode_range)(x) for x in s)
+
     @staticmethod
-    @numba.vectorize
-    def _encode_ranges(range_str):
+    @lru_cache(maxsize=32)
+    def _encode_range(range_str):
         splits = range_str[1:-1].split('-')
         range_max = float(splits[-1])
         range_min = float('-'.join(splits[:-1]))
