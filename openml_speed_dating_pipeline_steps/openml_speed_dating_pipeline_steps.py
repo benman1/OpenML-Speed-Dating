@@ -298,11 +298,12 @@ class SimpleImputerWithFeatureNames(SimpleImputer):
         )
 
     def fit(self, X, y=None):
+        super().fit(X, y)
         if isinstance(X, (pd.DataFrame, pd.Series)):
             self.features = list(X.columns)
         else:
             self.features = list(range(X.shape[1]))
-        return super().fit(X, y)
+        return self
 
     def get_features_with_missing(self):
         return [self.features[f] for f in self.indicator_.features_]
