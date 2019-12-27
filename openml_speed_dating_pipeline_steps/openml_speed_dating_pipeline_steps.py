@@ -304,5 +304,8 @@ class SimpleImputerWithFeatureNames(SimpleImputer):
             self.features = list(range(X.shape[1]))
         return super().fit(X, y)
 
-    def get_feature_names(self):
+    def get_features_with_missing(self):
         return [self.features[f] for f in self.indicator_.features_]
+
+    def get_feature_names(self):
+        return self.features

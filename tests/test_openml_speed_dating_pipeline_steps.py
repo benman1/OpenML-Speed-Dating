@@ -6,6 +6,7 @@
 import unittest
 
 from sklearn import datasets
+import numpy as np
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
 from openml_speed_dating_pipeline_steps import (
@@ -81,3 +82,14 @@ class TestOpenml_speed_dating_pipeline_steps(unittest.TestCase):
                 'sepal width (cm)_petal width (cm)_numdist',
                 'petal length (cm)_petal width (cm)_numdist'
             ])
+
+    def test_006_imputer_names(self):
+        imputer = pipeline_steps.SimpleImputerWithFeatureNames()
+        X = np.ones((3, 5))
+        X[0, 1] = np.nan
+        columns = list(range(5))
+        data = pd.DataFrame(data=X, columns=columns)
+        imputer.fit(data)
+        print(imputer.transform(data).shape)
+        print(imputer.get_feature_names())
+        assert imputer.get_feature_names() == columns
