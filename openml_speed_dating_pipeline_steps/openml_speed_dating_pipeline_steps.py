@@ -3,6 +3,7 @@ in the OpenML Speed Dating challenge."""
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
+import numba
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.impute import SimpleImputer
 import category_encoders.utils as util
@@ -49,13 +50,14 @@ class RangeTransformer(BaseEstimator, TransformerMixin):
 
         range_data = pd.DataFrame(index=X.index)
         for col in self.range_features:
-            range_data[str(col) + self.suffix] = X[col].apply(
-                lambda x: self._encode_ranges(x)
+            range_data[str(col) + self.suffix] = self._encode_ranges(
+                X[col].to_numpy()
             ).astype(float)
         self.feature_names = list(range_data.columns)
         return range_data
 
     @staticmethod
+    @numba.vectorize
     def _encode_ranges(range_str):
         splits = range_str[1:-1].split('-')
         range_max = float(splits[-1])
@@ -137,11 +139,7 @@ class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
             for col2 in self.features[i+1:]:
                 if not is_numeric_dtype(X[col2]):
                     continue
-                data[self._col_name(col1, col2)] = X.apply(
-                    lambda x:
-                    self.op(x[col1], x[col2]),
-                    axis=1
-                )
+                data[self._col_name(col1, col2)] = self.op(X[col1], X[col2])
         self.feature_names = list(data.columns)
         return data
 
@@ -154,6 +152,8 @@ class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
 class FloatTransformer(BaseEstimator, TransformerMixin):
     '''
     A custom transformer for floats encoded as strings.
+    NOTE: I consider this tranformer obsolete, since
+    I am using the OpenML version of the dataset.
 
     Parameters
     ----------
