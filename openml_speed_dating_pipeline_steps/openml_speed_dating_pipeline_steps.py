@@ -304,7 +304,25 @@ class SimpleImputerWithFeatureNames(SimpleImputer):
         else:
             self.features = list(range(X.shape[1]))
         return self
-
+  
+    def transform(self, X):
+        """Impute all missing values in X. Returns a DataFrame if given
+        a DataFrame.
+        
+        Parameters
+        ----------
+        X : {array-like, sparse matrix}, shape (n_samples, n_features)
+            The input data to complete.
+        """
+        X2 = super().transform(X)
+        if isinstance(X, (pd.DataFrame, pd.Series)):
+            return pd.DataFrame(
+                data=X2, 
+                columns=self.get_feature_names()
+            )
+        else:
+            return X2
+    
     def get_features_with_missing(self):
         return [self.features[f] for f in self.indicator_.features_]
 
