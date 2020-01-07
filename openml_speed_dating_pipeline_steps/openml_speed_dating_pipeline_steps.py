@@ -9,7 +9,6 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.impute import SimpleImputer
 import category_encoders.utils as util
 
-
 class RangeTransformer(BaseEstimator, TransformerMixin):
     '''
     A custom transformer for ranges.
@@ -127,9 +126,16 @@ class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
         '''
         X = util.convert_input(X)
         if self.features is None:
-            self.features = list(
+            self.numeric_features = list(
                 X.select_dtypes(include='number').columns
             )
+            self.features = list(X.columns)
+            self.other_features = list(
+                X.select_dtypes(exclude='number').columns
+            )
+        else:
+            self.numeric_features = self.features
+            self.other_features = []
         return self
 
     def _col_name(self, col1, col2):
@@ -137,8 +143,8 @@ class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
 
     def _feature_pairs(self):
         feature_pairs = []
-        for i, col1 in enumerate(self.features[:-1]):
-            for col2 in self.features[i+1:]:
+        for i, col1 in enumerate(self.numeric_features[:-1]):
+            for col2 in self.numeric_features[i+1:]:
                 feature_pairs.append((col1, col2))
         return feature_pairs
 
@@ -160,6 +166,13 @@ class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
             delayed(self.op)(X[col1], X[col2])
             for col1, col2 in feature_pairs
         )
+        
+        # to keep all other features apart from numeric ones:
+        data_cols.extend([
+            X[other_col] for other_col in self.other_features
+        ])
+        columns.extend(self.other_features)
+        
         data = pd.concat(data_cols, axis=1)
         data.rename(
             columns={i: col for i, col in enumerate(columns)},
