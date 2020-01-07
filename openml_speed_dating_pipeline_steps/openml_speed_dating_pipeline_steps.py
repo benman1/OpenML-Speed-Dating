@@ -130,12 +130,16 @@ class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
                 X.select_dtypes(include='number').columns
             )
             self.features = list(X.columns)
-            self.other_features = list(
-                X.select_dtypes(exclude='number').columns
-            )
         else:
             self.numeric_features = self.features
-            self.other_features = []
+            
+        feature_pairs = self._feature_pairs()
+        columns = Parallel(n_jobs=self.n_jobs)(
+            delayed(self._col_name)(col1, col2)
+            for col1, col2 in feature_pairs
+        )
+        columns.extend(self.features)
+        self.feature_names = columns
         return self
 
     def _col_name(self, col1, col2):
@@ -158,24 +162,17 @@ class NumericDifferenceTransformer(BaseEstimator, TransformerMixin):
         X = util.convert_input(X)
 
         feature_pairs = self._feature_pairs()
-        columns = Parallel(n_jobs=self.n_jobs)(
-            delayed(self._col_name)(col1, col2)
-            for col1, col2 in feature_pairs
-        )
         data_cols = Parallel(n_jobs=self.n_jobs)(
             delayed(self.op)(X[col1], X[col2])
             for col1, col2 in feature_pairs
         )
-        
-        # to keep all other features apart from numeric ones:
+        # to keep all features including original numeric ones:
         data_cols.extend([
-            X[other_col] for other_col in self.other_features
+            X[col] for col in self.features
         ])
-        columns.extend(self.other_features)
-        
         data = pd.concat(data_cols, axis=1)
         data.rename(
-            columns={i: col for i, col in enumerate(columns)},
+            columns={i: col for i, col in enumerate(self.feature_names)},
             inplace=True, copy=False
         )
         data.index = X.index
